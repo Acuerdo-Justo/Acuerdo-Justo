@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   Briefcase,
   Calculator,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   FileText,
   LayoutDashboard,
@@ -21,14 +23,19 @@ import {
   X,
 } from 'lucide-react';
 import logoImage from '../assets/logo.jpeg';
+import { AdvisoriesView } from './AdvisoriesView';
+import { AgendaView } from './AgendaView';
+import { CasesView } from './CasesView';
 import {
-  DemoUser,
-  getCurrentDemoUser,
-  getDemoUsers,
-  signOutDemo,
-  updateDemoUserRole,
-  UserRole,
+  type AdminUser,
+  type AuthUser,
+  listUsers,
+  logout,
+  updateUserRole,
+  type UserRole,
+  reportActivity,
 } from '../services/authService';
+import { getDashboard, listNotifications, markAllNotificationsRead, markNotificationRead, type DashboardData, type Notification } from '../services/platformService';
 
 const roleLabels: Record<UserRole, string> = {
   client: 'Cliente',
@@ -45,19 +52,6 @@ const navigation = [
   { label: 'Calculadora', icon: Calculator },
 ];
 
-const metrics = [
-  { label: 'Usuarios registrados', value: '05', detail: '3 clientes activos', icon: Users },
-  { label: 'Solicitudes abiertas', value: '08', detail: '2 requieren revisión', icon: FileText },
-  { label: 'Citas esta semana', value: '04', detail: 'Próxima: mañana 10:00', icon: CalendarDays },
-  { label: 'Acuerdos completados', value: '12', detail: 'Durante este mes', icon: CheckCircle2 },
-];
-
-const recentCases = [
-  { id: 'AJ-2026-018', client: 'María Torres', service: 'Asesoría virtual', status: 'En revisión', date: '08 jun. 2026' },
-  { id: 'AJ-2026-017', client: 'Carlos Mendoza', service: 'Cálculo de pensión', status: 'Pendiente', date: '07 jun. 2026' },
-  { id: 'AJ-2026-016', client: 'José Ramírez', service: 'Mediación', status: 'Programada', date: '06 jun. 2026' },
-];
-
 function RoleBadge({ role }: { role: UserRole }) {
   const styles: Record<UserRole, string> = {
     client: 'bg-brand-light text-brand',
@@ -68,30 +62,101 @@ function RoleBadge({ role }: { role: UserRole }) {
   return <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${styles[role]}`}>{roleLabels[role]}</span>;
 }
 
-export function DashboardPage() {
-  const currentUser = getCurrentDemoUser();
+export function DashboardPage({ currentUser }: { currentUser: AuthUser }) {
   const [activeItem, setActiveItem] = useState('Resumen');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [users, setUsers] = useState<DemoUser[]>(getDemoUsers);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
+  const [usersError, setUsersError] = useState('');
+  const [dashboard, setDashboard] = useState<DashboardData>({ metrics: { users: 0, openCases: 0, weekAppointments: 0, closedCases: 0 }, recentCases: [] });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    if (currentUser.role !== 'admin') return;
+
+    listUsers()
+      .then(setUsers)
+      .catch((error) => setUsersError(error instanceof Error ? error.message : 'No se pudieron cargar los usuarios.'));
+  }, [currentUser.role]);
+
+  useEffect(() => {
+    getDashboard().then(setDashboard).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const idleLimit = 5 * 60 * 1000;
+    let lastActivity = Date.now();
+    let idleTimer = window.setTimeout(handleIdle, idleLimit);
+
+    function handleIdle() {
+      void handleSignOut();
+    }
+
+    function registerActivity() {
+      lastActivity = Date.now();
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(handleIdle, idleLimit);
+    }
+
+    const activityEvents: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, registerActivity, { passive: true }));
+    const heartbeat = window.setInterval(() => {
+      if (Date.now() - lastActivity < idleLimit) reportActivity().catch(() => void handleIdle());
+    }, 60_000);
+
+    return () => {
+      window.clearTimeout(idleTimer);
+      window.clearInterval(heartbeat);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, registerActivity));
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadNotifications = () => listNotifications().then(({ notifications: items }) => setNotifications(items)).catch(() => undefined);
+    void loadNotifications();
+    const interval = window.setInterval(loadNotifications, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const visibleUsers = useMemo(
-    () => users.filter((user) => `${user.name} ${user.username}`.toLowerCase().includes(search.toLowerCase())),
+    () => users.filter((user) => `${user.fullName} ${user.username}`.toLowerCase().includes(search.toLowerCase())),
     [search, users],
   );
 
-  const handleRoleChange = (userId: string, role: UserRole) => {
-    setUsers(updateDemoUserRole(userId, role));
+  const handleRoleChange = async (userId: string, role: UserRole) => {
+    try {
+      const updatedUser = await updateUserRole(userId, role);
+      setUsers((currentUsers) => currentUsers.map((user) => (user.id === userId ? updatedUser : user)));
+      setUsersError('');
+    } catch (error) {
+      setUsersError(error instanceof Error ? error.message : 'No se pudo actualizar el rol.');
+    }
   };
 
-  const handleSignOut = () => {
-    signOutDemo();
-    window.location.href = '/login';
+  const handleSignOut = async () => {
+    await logout().catch(() => undefined);
+    window.location.replace('/login');
   };
 
   const selectItem = (label: string) => {
     setActiveItem(label);
     setIsMenuOpen(false);
+  };
+
+  const openNotification = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await markNotificationRead(notification.id).catch(() => undefined);
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, isRead: true } : item));
+    }
+    const sections = { agenda: 'Agenda', cases: 'Casos y solicitudes', advisories: 'Asesorías' };
+    if (notification.action) selectItem(sections[notification.action]);
+    setIsNotificationsOpen(false);
+  };
+
+  const readAllNotifications = async () => {
+    await markAllNotificationsRead().catch(() => undefined);
+    setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
   };
 
   return (
@@ -114,7 +179,7 @@ export function DashboardPage() {
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white"><UserRound className="h-5 w-5" /></div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{currentUser.name}</p>
+              <p className="truncate text-sm font-semibold">{currentUser.fullName}</p>
               <p className="text-xs text-white/45">@{currentUser.username}</p>
             </div>
           </div>
@@ -147,19 +212,26 @@ export function DashboardPage() {
               <h1 className="font-serif text-xl font-bold sm:text-2xl">{activeItem}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="relative rounded-full border border-ink-line p-2.5 text-ink-muted hover:text-brand" aria-label="Notificaciones">
-              <Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
+          <div className="relative flex items-center gap-3">
+            <button onClick={() => setIsNotificationsOpen((value) => !value)} className="relative rounded-full border border-ink-line p-2.5 text-ink-muted hover:text-brand" aria-label="Notificaciones" aria-expanded={isNotificationsOpen}>
+              <Bell className="h-5 w-5" />{notifications.some((notification) => !notification.isRead) && <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[8px] font-bold text-white">{Math.min(99, notifications.filter((notification) => !notification.isRead).length)}</span>}
             </button>
+            {isNotificationsOpen && <NotificationsPanel notifications={notifications} onClose={() => setIsNotificationsOpen(false)} onOpen={openNotification} onReadAll={readAllNotifications} />}
             <span className="hidden sm:block"><RoleBadge role={currentUser.role} /></span>
           </div>
         </header>
 
         <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-          {activeItem === 'Usuarios y roles' ? (
-            <UsersView users={visibleUsers} search={search} onSearch={setSearch} onRoleChange={handleRoleChange} />
+          {activeItem === 'Usuarios y roles' && currentUser.role === 'admin' ? (
+            <UsersView users={visibleUsers} search={search} error={usersError} currentUserId={currentUser.id} onSearch={setSearch} onRoleChange={handleRoleChange} />
+          ) : activeItem === 'Agenda' ? (
+            <AgendaView currentUser={currentUser} />
+          ) : activeItem === 'Casos y solicitudes' ? (
+            <CasesView currentUser={currentUser} />
+          ) : activeItem === 'Asesorías' ? (
+            <AdvisoriesView currentUser={currentUser} />
           ) : (
-            <Overview onManageUsers={() => selectItem('Usuarios y roles')} />
+            <Overview data={dashboard} canManageUsers={currentUser.role === 'admin'} onManageUsers={() => selectItem('Usuarios y roles')} />
           )}
         </main>
       </div>
@@ -167,7 +239,18 @@ export function DashboardPage() {
   );
 }
 
-function Overview({ onManageUsers }: { onManageUsers: () => void }) {
+function Overview({ data, canManageUsers, onManageUsers }: { data: DashboardData; canManageUsers: boolean; onManageUsers: () => void }) {
+  const metrics = [
+    { label: 'Usuarios registrados', value: data.metrics.users, detail: 'Usuarios activos', icon: Users },
+    { label: 'Expedientes abiertos', value: data.metrics.openCases, detail: 'Procesos activos', icon: FileText },
+    { label: 'Citas esta semana', value: data.metrics.weekAppointments, detail: 'Próximos siete días', icon: CalendarDays },
+    { label: 'Expedientes cerrados', value: data.metrics.closedCases, detail: 'Procesos completados', icon: CheckCircle2 },
+  ];
+  const recentCases = data.recentCases.map((legalCase) => ({
+    ...legalCase,
+    status: legalCase.status === 'open' ? 'Abierto' : legalCase.status === 'review' ? 'En revisión' : 'Cerrado',
+    date: formatDate(legalCase.date),
+  }));
   return (
     <>
       <section className="relative mb-8 overflow-hidden bg-brand px-7 py-8 text-white shadow-professional sm:px-10 sm:py-10">
@@ -179,9 +262,11 @@ function Overview({ onManageUsers }: { onManageUsers: () => void }) {
             <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl">Gestión ordenada para una atención cercana</h2>
             <p className="max-w-xl leading-7 text-white/70">Supervisa usuarios, solicitudes y citas desde un espacio diseñado para acompañar cada caso con claridad.</p>
           </div>
-          <button onClick={onManageUsers} className="flex shrink-0 items-center gap-3 rounded-md bg-white px-5 py-3 text-sm font-semibold text-brand transition-colors hover:bg-accent-light">
-            <UserCog className="h-4 w-4" /> Gestionar roles
-          </button>
+          {canManageUsers && (
+            <button onClick={onManageUsers} className="flex shrink-0 items-center gap-3 rounded-md bg-white px-5 py-3 text-sm font-semibold text-brand transition-colors hover:bg-accent-light">
+              <UserCog className="h-4 w-4" /> Gestionar roles
+            </button>
+          )}
         </div>
       </section>
 
@@ -231,27 +316,69 @@ function Overview({ onManageUsers }: { onManageUsers: () => void }) {
 }
 
 interface UsersViewProps {
-  users: DemoUser[];
+  users: AdminUser[];
   search: string;
+  error: string;
+  currentUserId: string;
   onSearch: (value: string) => void;
-  onRoleChange: (userId: string, role: UserRole) => void;
+  onRoleChange: (userId: string, role: UserRole) => Promise<void>;
 }
 
-function UsersView({ users, search, onSearch, onRoleChange }: UsersViewProps) {
+function NotificationsPanel({ notifications, onClose, onOpen, onReadAll }: { notifications: Notification[]; onClose: () => void; onOpen: (notification: Notification) => void; onReadAll: () => void }) {
+  const groups = notifications.reduce<Record<string, Notification[]>>((result, notification) => {
+    const key = notificationDay(notification.createdAt);
+    result[key] = [...(result[key] ?? []), notification];
+    return result;
+  }, {});
+  return (
+    <section className="fixed inset-x-4 top-20 z-50 max-h-[75vh] overflow-hidden border border-ink-line bg-white shadow-professional sm:absolute sm:inset-x-auto sm:right-0 sm:top-14 sm:w-[26rem]">
+      <header className="flex items-center justify-between border-b border-ink-line px-4 py-4">
+        <div><h2 className="font-serif text-lg font-bold">Notificaciones</h2><p className="text-xs text-ink-muted">{notifications.filter((item) => !item.isRead).length} sin leer</p></div>
+        <div className="flex items-center gap-2"><button type="button" onClick={onReadAll} className="text-xs font-semibold text-brand">Marcar leídas</button><button type="button" onClick={onClose} aria-label="Cerrar notificaciones" className="p-2 text-ink-muted"><X className="h-4 w-4" /></button></div>
+      </header>
+      <div className="max-h-[calc(75vh-5rem)] overflow-y-auto">
+        {notifications.length === 0 && <div className="p-8 text-center text-sm text-ink-muted"><Bell className="mx-auto mb-3 h-6 w-6 text-ink-subtle" />No tienes notificaciones.</div>}
+        {Object.entries(groups).map(([day, items]) => <div key={day}>
+          <p className="sticky top-0 border-y border-ink-line bg-brand-soft px-4 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted">{day}</p>
+          {items.map((notification) => <button key={notification.id} type="button" onClick={() => void onOpen(notification)} className={`block w-full border-b border-ink-line px-4 py-4 text-left transition-colors hover:bg-brand-soft ${notification.isRead ? 'bg-white' : 'bg-brand-light/50'}`}>
+            <div className="flex items-start gap-3"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.isRead ? 'bg-ink-line' : 'bg-accent'}`} /><div><p className="text-sm font-semibold">{notification.title}</p><p className="mt-1 text-xs leading-5 text-ink-muted">{notification.message}</p><p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-ink-subtle">{formatNotificationTime(notification.createdAt)}</p></div></div>
+          </button>)}
+        </div>)}
+      </div>
+    </section>
+  );
+}
+
+function notificationDay(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Hoy';
+  if (date.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: '2-digit', month: 'long' }).format(date);
+}
+
+function formatNotificationTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('es-PE', { hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+function UsersView({ users, search, error, currentUserId, onSearch, onRoleChange }: UsersViewProps) {
+  const usersPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(users.length / usersPerPage));
+  const pageUsers = users.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
   return (
     <>
-      <section className="mb-8 flex flex-col justify-between gap-5 border-b border-ink-line pb-7 md:flex-row md:items-end">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent">Administración de accesos</p>
-          <h2 className="mb-2 font-serif text-3xl font-bold sm:text-4xl">Usuarios y roles</h2>
-          <p className="max-w-2xl text-sm leading-6 text-ink-muted">Los usuarios nuevos se registran automáticamente como clientes. Desde aquí puedes habilitar asesores legales o administradores.</p>
-        </div>
-        <div className="flex items-center gap-3 border border-ink-line bg-white px-4">
-          <Search className="h-4 w-4 text-ink-subtle" />
-          <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Buscar usuario..." className="w-56 bg-transparent py-3 text-sm outline-none" />
-        </div>
-      </section>
-
       <section className="mb-6 grid gap-4 md:grid-cols-3">
         {(['client', 'legal_advisor', 'admin'] as UserRole[]).map((role) => (
           <article key={role} className="border border-ink-line bg-white p-5 shadow-sm">
@@ -262,31 +389,87 @@ function UsersView({ users, search, onSearch, onRoleChange }: UsersViewProps) {
       </section>
 
       <section className="overflow-hidden border border-ink-line bg-white shadow-sm">
-        <div className="border-b border-ink-line px-6 py-5"><h3 className="font-serif text-xl font-bold">Directorio de usuarios</h3></div>
-        <div className="overflow-x-auto">
+        <div className="flex flex-col gap-4 border-b border-ink-line px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-serif text-xl font-bold">Directorio de usuarios</h2>
+            <p className="mt-1 text-xs text-ink-muted">{users.length} usuario{users.length === 1 ? '' : 's'} encontrado{users.length === 1 ? '' : 's'}</p>
+          </div>
+          <label className="flex w-full items-center gap-3 border border-ink-line bg-brand-soft px-4 md:w-64">
+            <Search className="h-4 w-4 shrink-0 text-ink-subtle" />
+            <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Buscar usuario..." className="min-w-0 w-full bg-transparent py-3 text-sm outline-none" />
+          </label>
+        </div>
+        {error && <p className="border-b border-ink-line bg-accent-light px-6 py-3 text-sm font-medium text-accent">{error}</p>}
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-brand-soft text-[10px] uppercase tracking-[0.15em] text-ink-muted">
               <tr><th className="px-6 py-3">Usuario</th><th className="px-6 py-3">Rol actual</th><th className="px-6 py-3">Estado</th><th className="px-6 py-3">Registro</th><th className="px-6 py-3">Asignar rol</th></tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {pageUsers.map((user) => (
                 <tr key={user.id} className="border-t border-ink-line">
-                  <td className="px-6 py-4"><p className="font-semibold">{user.name}</p><p className="text-xs text-ink-muted">@{user.username}</p></td>
+                  <td className="px-6 py-4"><p className="font-semibold">{user.fullName}</p><p className="text-xs text-ink-muted">@{user.username}</p></td>
                   <td className="px-6 py-4"><RoleBadge role={user.role} /></td>
-                  <td className="px-6 py-4"><span className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted"><span className={`h-2 w-2 rounded-full ${user.status === 'active' ? 'bg-green-500' : 'bg-amber-400'}`} />{user.status === 'active' ? 'Activo' : 'Pendiente'}</span></td>
-                  <td className="px-6 py-4 text-ink-muted"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4" />{user.createdAt}</span></td>
+                  <td className="px-6 py-4"><span className="inline-flex items-center gap-2 text-xs font-semibold text-ink-muted"><span className={`h-2 w-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-amber-400'}`} />{user.isActive ? 'Activo' : 'Inactivo'}</span></td>
+                  <td className="px-6 py-4 text-ink-muted"><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4" />{formatDate(user.createdAt)}</span></td>
                   <td className="px-6 py-4">
-                    <select value={user.role} disabled={user.username === 'admin'} onChange={(event) => onRoleChange(user.id, event.target.value as UserRole)} className="rounded-md border border-ink-line bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-brand disabled:cursor-not-allowed disabled:bg-brand-soft disabled:text-ink-subtle">
-                      <option value="client">Cliente</option><option value="legal_advisor">Asesor legal</option><option value="admin">Administrador</option>
-                    </select>
+                    <RoleSelect user={user} currentUserId={currentUserId} onRoleChange={onRoleChange} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        <div className="divide-y divide-ink-line md:hidden">
+          {pageUsers.map((user) => (
+            <article key={user.id} className="space-y-4 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{user.fullName}</p>
+                  <p className="truncate text-xs text-ink-muted">@{user.username}</p>
+                </div>
+                <RoleBadge role={user.role} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs text-ink-muted">
+                <span className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-amber-400'}`} />{user.isActive ? 'Activo' : 'Inactivo'}</span>
+                <span className="inline-flex items-center justify-end gap-2"><Clock3 className="h-4 w-4" />{formatDate(user.createdAt)}</span>
+              </div>
+              <RoleSelect user={user} currentUserId={currentUserId} onRoleChange={onRoleChange} fullWidth />
+            </article>
+          ))}
+        </div>
+
         {users.length === 0 && <div className="p-10 text-center text-sm text-ink-muted"><MessageSquareText className="mx-auto mb-3 h-6 w-6" />No se encontraron usuarios.</div>}
+
+        {users.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-ink-line px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p className="text-xs text-ink-muted">Mostrando {(currentPage - 1) * usersPerPage + 1}-{Math.min(currentPage * usersPerPage, users.length)} de {users.length}</p>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)} className="inline-flex items-center gap-2 rounded-md border border-ink-line px-3 py-2 text-xs font-semibold text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40">
+                <ChevronLeft className="h-4 w-4" /> Anterior
+              </button>
+              <span className="text-xs font-semibold text-ink">Pagina {currentPage} de {totalPages}</span>
+              <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)} className="inline-flex items-center gap-2 rounded-md border border-ink-line px-3 py-2 text-xs font-semibold text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40">
+                Siguiente <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </>
   );
+}
+
+function RoleSelect({ user, currentUserId, onRoleChange, fullWidth = false }: { user: AdminUser; currentUserId: string; onRoleChange: (userId: string, role: UserRole) => Promise<void>; fullWidth?: boolean }) {
+  return (
+    <select value={user.role} disabled={user.id === currentUserId} onChange={(event) => void onRoleChange(user.id, event.target.value as UserRole)} className={`${fullWidth ? 'w-full py-3' : 'py-2'} rounded-md border border-ink-line bg-white px-3 text-xs font-semibold outline-none focus:border-brand disabled:cursor-not-allowed disabled:bg-brand-soft disabled:text-ink-subtle`}>
+      <option value="client">Cliente</option><option value="legal_advisor">Asesor legal</option><option value="admin">Administrador</option>
+    </select>
+  );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 }

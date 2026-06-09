@@ -1,103 +1,110 @@
-import { supabase } from '../lib/supabase';
-
-const demoSessionKey = 'acuerdo-justo-demo-session';
-const demoUsersKey = 'acuerdo-justo-demo-users';
+const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+const tabSessionKey = 'acuerdo_justo_tab_session';
 
 export type UserRole = 'client' | 'legal_advisor' | 'admin';
 
-export interface DemoUser {
+export interface AuthUser {
   id: string;
-  name: string;
+  fullName: string;
   username: string;
   role: UserRole;
-  status: 'active' | 'pending';
+}
+
+export interface AdminUser extends AuthUser {
+  isActive: boolean;
   createdAt: string;
 }
 
-const initialDemoUsers: DemoUser[] = [
-  { id: 'usr-001', name: 'Administrador general', username: 'admin', role: 'admin', status: 'active', createdAt: '2026-06-01' },
-  { id: 'usr-002', name: 'María Torres', username: 'maria.torres', role: 'client', status: 'active', createdAt: '2026-06-04' },
-  { id: 'usr-003', name: 'Carlos Mendoza', username: 'carlos.mendoza', role: 'client', status: 'active', createdAt: '2026-06-05' },
-  { id: 'usr-004', name: 'Lucía Vargas', username: 'lucia.vargas', role: 'legal_advisor', status: 'active', createdAt: '2026-06-06' },
-  { id: 'usr-005', name: 'José Ramírez', username: 'jose.ramirez', role: 'client', status: 'pending', createdAt: '2026-06-08' },
-];
-
-function getClient() {
-  if (!supabase) {
-    throw new Error('El acceso estará disponible cuando Supabase sea configurado.');
-  }
-
-  return supabase;
+interface AuthResponse {
+  user: AuthUser;
 }
 
-export function signInDemo(username: string, password: string) {
-  const isValid = username === 'admin' && password === 'admin';
-
-  if (isValid) {
-    sessionStorage.setItem(demoSessionKey, 'true');
-  }
-
-  return isValid;
+interface UsersResponse {
+  users: AdminUser[];
 }
 
-export function getCurrentDemoUser() {
-  return getDemoUsers().find((user) => user.username === 'admin') ?? initialDemoUsers[0];
+interface UserResponse {
+  user: AdminUser;
 }
 
-export function getDemoUsers(): DemoUser[] {
-  const savedUsers = localStorage.getItem(demoUsersKey);
+export async function apiRequest<T>(path: string, options: RequestInit = {}) {
+  const headers = options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers };
+  const response = await fetch(`${apiUrl}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers,
+  });
 
-  if (!savedUsers) {
-    localStorage.setItem(demoUsersKey, JSON.stringify(initialDemoUsers));
-    return initialDemoUsers;
+  if (!response.ok) {
+    if (response.status === 401) clearTabSession();
+    const error = await response.json().catch(() => ({ message: 'No se pudo completar la solicitud.' }));
+    throw new Error(error.message ?? 'No se pudo completar la solicitud.');
   }
 
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export function apiResourceUrl(path: string) {
+  return `${apiUrl}${path}`;
+}
+
+export async function login(username: string, password: string) {
+  const response = await apiRequest<AuthResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  markTabSession();
+  return response.user;
+}
+
+export async function register(fullName: string, username: string, password: string) {
+  const response = await apiRequest<AuthResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ fullName, username, password }),
+  });
+  markTabSession();
+  return response.user;
+}
+
+export async function getCurrentUser() {
+  const response = await apiRequest<AuthResponse>('/auth/me');
+  return response.user;
+}
+
+export async function logout() {
   try {
-    return JSON.parse(savedUsers) as DemoUser[];
-  } catch {
-    localStorage.setItem(demoUsersKey, JSON.stringify(initialDemoUsers));
-    return initialDemoUsers;
+    await apiRequest<void>('/auth/logout', { method: 'POST' });
+  } finally {
+    clearTabSession();
   }
 }
 
-export function registerDemoClient(name: string, username: string): DemoUser {
-  const users = getDemoUsers();
-  const newUser: DemoUser = {
-    id: `usr-${Date.now()}`,
-    name,
-    username,
-    role: 'client',
-    status: 'active',
-    createdAt: new Date().toISOString().slice(0, 10),
-  };
-
-  localStorage.setItem(demoUsersKey, JSON.stringify([...users, newUser]));
-  return newUser;
+export async function reportActivity() {
+  await apiRequest<void>('/auth/activity', { method: 'POST' });
 }
 
-export function updateDemoUserRole(userId: string, role: UserRole) {
-  const users = getDemoUsers().map((user) => (user.id === userId ? { ...user, role } : user));
-  localStorage.setItem(demoUsersKey, JSON.stringify(users));
-  return users;
+export function hasTabSession() {
+  return sessionStorage.getItem(tabSessionKey) === 'active';
 }
 
-export function hasDemoSession() {
-  return sessionStorage.getItem(demoSessionKey) === 'true';
+export function clearTabSession() {
+  sessionStorage.removeItem(tabSessionKey);
 }
 
-export function signOutDemo() {
-  sessionStorage.removeItem(demoSessionKey);
+function markTabSession() {
+  sessionStorage.setItem(tabSessionKey, 'active');
 }
 
-export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await getClient().auth.signInWithPassword({ email, password });
-
-  if (error) throw error;
-  return data;
+export async function listUsers() {
+  const response = await apiRequest<UsersResponse>('/admin/users');
+  return response.users;
 }
 
-export async function signOut() {
-  const { error } = await getClient().auth.signOut();
-
-  if (error) throw error;
+export async function updateUserRole(userId: string, role: UserRole) {
+  const response = await apiRequest<UserResponse>(`/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
+  return response.user;
 }

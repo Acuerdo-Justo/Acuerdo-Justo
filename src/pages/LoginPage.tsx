@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import logoImage from '../assets/logo.jpeg';
 import { Login } from '../sections/Login';
 
-export function LoginPage() {
+export function LoginPage({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <main className="min-h-screen bg-brand-soft">
       <header className="border-b border-ink-line bg-white">
@@ -17,7 +17,7 @@ export function LoginPage() {
           </a>
         </div>
       </header>
-      <Login />
+      <Login onAuthenticated={onAuthenticated} />
     </main>
   );
 }

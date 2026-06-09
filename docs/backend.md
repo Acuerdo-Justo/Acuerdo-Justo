@@ -1,35 +1,27 @@
-# Preparación de backend
+# Integración con backend
 
-La aplicación está preparada para conectarse a Supabase sin acoplar la interfaz
-directamente a la base de datos.
+El frontend consume exclusivamente la API de `Back-Acuerdo-Justo`.
 
-## Estructura
+## Variables
 
-- `src/types/platform.ts`: contratos del dominio.
-- `src/lib/supabase.ts`: cliente opcional de Supabase.
-- `src/services/platformService.ts`: operaciones de datos.
-- `supabase/schema.sql`: tablas y políticas iniciales.
-- `.env.example`: variables necesarias.
+```env
+VITE_API_URL=http://localhost:3000/api
+VITE_WS_URL=ws://localhost:3000/ws
+```
 
-## Conectar Supabase
+## Sesión
 
-1. Crea un proyecto en Supabase.
-2. Ejecuta `supabase/schema.sql` desde el SQL Editor.
-3. Crea un archivo `.env` basado en `.env.example`.
-4. Reinicia el servidor de desarrollo.
+- El JWT permanece únicamente en una cookie HttpOnly.
+- PostgreSQL controla sesiones revocables y expira la sesión tras 5 minutos sin actividad.
+- `sessionStorage` guarda solamente un marcador no sensible para exigir un nuevo login al cerrar y volver a abrir la pestaña.
+- No se guardan JWT, credenciales ni datos privados en almacenamiento del navegador.
 
-## Seguridad antes de producción
+## Módulos conectados
 
-- Protege solicitudes públicas con CAPTCHA o una Edge Function.
-- Agrega autenticación para asesores y administradores.
-- No guardes cálculos financieros anónimos.
-- Genera tipos de Supabase y reemplaza los casts temporales del servicio.
-- Define permisos administrativos para confirmar citas y gestionar solicitudes.
+- Autenticación y roles.
+- Agenda y citas.
+- Expedientes y documentos.
+- Asesorías virtuales.
+- Notificaciones y recordatorios.
 
-## Siguientes módulos recomendados
-
-1. Calculadora interactiva.
-2. Formulario de asesoría virtual.
-3. Calendario de disponibilidad.
-4. Panel administrativo.
-5. Autenticación y seguimiento del usuario.
+Consulta [DEPLOYMENT.md](../DEPLOYMENT.md) para la configuración de Vercel.

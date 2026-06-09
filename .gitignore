@@ -29,10 +29,6 @@ coverage/
 .eslintcache
 *.tsbuildinfo
 
-# Supabase local development
-supabase/.branches/
-supabase/.temp/
-
 # Editors
 .vscode/*
 !.vscode/extensions.json
