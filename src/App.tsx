@@ -1,5 +1,6 @@
 import { Footer } from './components/layout/Footer';
 import { Navbar } from './components/layout/Navbar';
+import { LandingBackground } from './components/ui/LandingBackground';
 import { Contacto } from './sections/Contacto';
 import { Galeria } from './sections/Galeria';
 import { Herramientas } from './sections/Herramientas';
@@ -9,14 +10,19 @@ import { Proyecto } from './sections/Proyecto';
 
 function App() {
   return (
-    <div className="min-h-screen bg-brand-soft">
+    <div className="min-h-screen bg-white">
       <Navbar />
       <Hero />
-      <Nosotros />
-      <Galeria />
-      <Herramientas />
-      <Proyecto />
-      <Contacto />
+      <div className="relative isolate overflow-hidden bg-white">
+        <LandingBackground />
+        <div className="relative">
+          <Nosotros />
+          <Galeria />
+          <Herramientas />
+          <Proyecto />
+          <Contacto />
+        </div>
+      </div>
       <Footer />
     </div>
   );

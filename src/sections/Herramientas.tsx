@@ -23,9 +23,8 @@ export function Herramientas() {
   const { ref, isVisible } = useInView();
 
   return (
-    <section id="plataforma" className="relative overflow-hidden bg-white py-24 lg:py-32" ref={ref}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
-      <div className={`max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+    <section id="plataforma" className="relative py-24 lg:py-32" ref={ref}>
+      <div className={`relative max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div className="mb-14 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-brand">Servicios digitales</p>

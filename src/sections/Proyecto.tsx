@@ -29,9 +29,8 @@ export function Proyecto() {
   const { ref, isVisible } = useInView();
 
   return (
-    <section id="valores" className="relative overflow-hidden py-24 lg:py-32 bg-brand-soft" ref={ref}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
-      <div className={`max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+    <section id="valores" className="relative py-24 lg:py-32" ref={ref}>
+      <div className={`relative max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <SectionHeading title="Valores que nos representan" />
         <p className="text-center text-ink-muted text-lg max-w-2xl mx-auto mb-16 leading-relaxed">
           Nuestra labor se guía por principios que fortalecen la confianza y orientan cada decisión profesional.

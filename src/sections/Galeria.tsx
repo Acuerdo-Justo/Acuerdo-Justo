@@ -24,21 +24,21 @@ export function Galeria() {
   };
 
   return (
-    <section id="galeria" className="overflow-hidden bg-ink py-24 lg:py-28" ref={ref}>
-      <div className={`max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+    <section id="galeria" className="relative py-24 lg:py-28" ref={ref}>
+      <div className={`relative max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-accent-light">Nuestro trabajo</p>
-            <h2 className="font-serif text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-brand">Nuestro trabajo</p>
+            <h2 className="font-serif text-3xl font-bold tracking-tight text-ink sm:text-4xl lg:text-5xl">
               Acompañamiento que construye confianza
             </h2>
           </div>
-          <p className="max-w-md leading-relaxed text-white/55">
+          <p className="max-w-md leading-relaxed text-ink-muted">
             Conoce algunas experiencias y acciones que representan nuestro compromiso con una orientación jurídica cercana.
           </p>
         </div>
 
-        <div className="relative overflow-hidden border border-white/10 bg-white/[0.04] shadow-professional">
+        <div className="relative overflow-hidden border border-ink-line bg-white shadow-professional">
           <div
             className="flex transition-transform duration-700 ease-out"
             style={{ transform: `translateX(-${activeIndex * 100}%)` }}
@@ -77,7 +77,7 @@ export function Galeria() {
               type="button"
               aria-label={`Mostrar imagen ${index + 1}`}
               onClick={() => setActiveIndex(index)}
-              className={`h-1.5 transition-all duration-300 ${activeIndex === index ? 'w-10 bg-accent' : 'w-5 bg-white/20 hover:bg-white/40'}`}
+              className={`h-1.5 transition-all duration-300 ${activeIndex === index ? 'w-10 bg-accent' : 'w-5 bg-brand/15 hover:bg-brand/35'}`}
             />
           ))}
         </div>

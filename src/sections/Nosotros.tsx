@@ -21,11 +21,8 @@ export function Nosotros() {
   const { ref, isVisible } = useInView();
 
   return (
-    <section id="nosotros" className="relative overflow-hidden bg-white py-24 lg:py-32" ref={ref}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
-      <div className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-brand-light blur-3xl opacity-50" />
-      <div className="absolute -right-24 bottom-12 h-72 w-72 rounded-full bg-accent-light blur-3xl opacity-50" />
-      <div className={`max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+    <section id="nosotros" className="relative py-24 lg:py-32" ref={ref}>
+      <div className={`relative max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <SectionHeading title="Nuestra identidad institucional" />
         <p className="max-w-2xl mx-auto mb-14 text-center text-lg leading-relaxed text-ink-muted">
           Trabajamos para construir acuerdos responsables mediante una orientación jurídica cercana, clara y profesional.

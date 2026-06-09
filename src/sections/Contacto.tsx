@@ -12,9 +12,7 @@ export function Contacto() {
   const { ref, isVisible } = useInView();
 
   return (
-    <section id="contacto" className="relative overflow-hidden bg-white py-24 lg:py-32" ref={ref}>
-      <div className="absolute top-0 right-0 w-96 h-96 bg-accent-light rounded-full blur-3xl opacity-70" />
-      <div className="absolute bottom-0 left-0 w-[32rem] h-[32rem] bg-brand-light rounded-full blur-3xl opacity-70" />
+    <section id="contacto" className="relative py-24 lg:py-32" ref={ref}>
 
       <div className={`relative max-w-7xl mx-auto px-6 lg:px-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <SectionHeading title="Contáctanos" />
