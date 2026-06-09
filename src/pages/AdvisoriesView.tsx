@@ -297,8 +297,15 @@ function MeetingRoom({ meeting, currentUser, onLeave, onFinish }: { meeting: Vir
 
 function ParticipantTile({ name, label, stream, muted = false, cameraOn, microphoneOn }: { name: string; label: string; stream?: MediaStream; muted?: boolean; cameraOn: boolean; microphoneOn: boolean }) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  useEffect(() => { if (remoteVideoRef.current && stream) remoteVideoRef.current.srcObject = stream; }, [stream, cameraOn]);
-  return <article className="relative flex min-h-64 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5">{cameraOn ? <video ref={remoteVideoRef} autoPlay muted={muted} playsInline className="h-full w-full object-cover" /> : <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand text-white"><UserRound className="h-9 w-9" /></div>}<div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-4 py-3 text-white"><div><p className="text-sm font-semibold">{name}</p><p className="text-[10px] text-white/60">{label}</p></div>{microphoneOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4 text-red-300" />}</div></article>;
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    if (!video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => {
+      // Some browsers wait for the next user interaction before allowing remote audio.
+    });
+  }, [stream]);
+  return <article className="relative flex min-h-64 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5"><video ref={remoteVideoRef} autoPlay muted={muted} playsInline className={cameraOn ? 'h-full w-full object-cover' : 'pointer-events-none absolute h-px w-px opacity-0'} />{!cameraOn && <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand text-white"><UserRound className="h-9 w-9" /></div>}<div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-4 py-3 text-white"><div><p className="text-sm font-semibold">{name}</p><p className="text-[10px] text-white/60">{label}</p></div>{microphoneOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4 text-red-300" />}</div></article>;
 }
 
 function ControlButton({ active, disabled, onClick, activeIcon: ActiveIcon, inactiveIcon: InactiveIcon, label }: { active: boolean; disabled?: boolean; onClick: () => void; activeIcon: typeof Mic; inactiveIcon: typeof MicOff; label: string }) {
