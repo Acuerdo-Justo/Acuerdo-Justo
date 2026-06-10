@@ -1,12 +1,7 @@
-import { ArrowRight, Calculator, CalendarDays, Video } from 'lucide-react';
+import { ArrowRight, CalendarDays, Video } from 'lucide-react';
 import { useInView } from '../hooks/useInView';
 
 const tools = [
-  {
-    icon: Calculator,
-    title: 'Calculadora de pensión',
-    description: 'Organiza los gastos reales de manutención y genera una referencia técnica para el pre-acuerdo.',
-  },
   {
     icon: Video,
     title: 'Asesoría virtual',
@@ -30,7 +25,7 @@ export function Herramientas() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-brand">Servicios digitales</p>
             <h2 className="font-serif text-4xl font-bold tracking-tight text-ink sm:text-5xl">Plataforma digital</h2>
             <p className="mt-5 text-lg leading-relaxed text-ink-muted">
-              Herramientas para organizar la información, facilitar el pre-acuerdo y acercar orientación jurídica a más familias.
+              Servicios para facilitar la atención y acercar orientación jurídica a más familias.
             </p>
           </div>
           <a href="/login" className="group inline-flex w-fit items-center gap-2 border-b border-brand pb-1 text-sm font-semibold text-brand transition-colors hover:border-accent hover:text-accent">
@@ -39,7 +34,7 @@ export function Herramientas() {
           </a>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 lg:grid-cols-2">
           {tools.map((tool, index) => (
             <article
               key={tool.title}

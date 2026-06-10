@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Eye, FilePlus2, FileText, FolderOpen, Link2, Plus, Upload, X } from 'lucide-react';
 import type { AuthUser } from '../services/authService';
-import { createCase as createCaseRequest, documentUrl, getCase, linkAppointment as linkAppointmentRequest, listAppointments, listCases, updateCaseStatus, uploadCaseDocuments } from '../services/platformService';
+import { createCase as createCaseRequest, getCase, getDocumentBlob, linkAppointment as linkAppointmentRequest, listAppointments, listCases, updateCaseStatus, uploadCaseDocuments } from '../services/platformService';
 
 type CaseStatus = 'open' | 'review' | 'closed';
 
@@ -11,7 +11,6 @@ interface CaseDocument {
   uploadedBy: string;
   uploadedAt: string;
   size: string;
-  previewUrl?: string;
 }
 
 interface LegalCase {
@@ -114,7 +113,6 @@ export function CasesView({ currentUser }: { currentUser: AuthUser }) {
           uploadedBy: document.uploadedBy,
           uploadedAt: document.uploadedAt,
           size: formatFileSize(document.sizeBytes),
-          previewUrl: documentUrl(document.id),
         })),
       } : item));
       setAppointments((items) => [
@@ -366,19 +364,42 @@ function DocumentsTable({ documents }: { documents: CaseDocument[] }) {
 }
 
 function DocumentViewer({ document, onClose }: { document: CaseDocument; onClose: () => void }) {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [previewError, setPreviewError] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+    let objectUrl = '';
+    getDocumentBlob(document.id)
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        if (isActive) setPreviewUrl(objectUrl);
+        else URL.revokeObjectURL(objectUrl);
+      })
+      .catch((loadError) => {
+        if (isActive) setPreviewError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el documento.');
+      });
+
+    return () => {
+      isActive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [document.id]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4">
       <div className="w-full max-w-3xl border border-ink-line bg-white shadow-professional">
         <header className="flex items-start justify-between border-b border-ink-line px-5 py-5"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand">Documento del expediente</p><h2 className="truncate font-serif text-xl font-bold">{document.name}</h2></div><button type="button" onClick={onClose} aria-label="Cerrar visor" className="p-2 text-ink-muted"><X className="h-5 w-5" /></button></header>
         <div className="p-5 sm:p-6">
-          {document.previewUrl && <a href={document.previewUrl} target="_blank" rel="noreferrer" className="mb-4 inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2.5 text-sm font-semibold text-white"><Eye className="h-4 w-4" />Abrir documento</a>}
-          {document.previewUrl ? (
-            <iframe src={document.previewUrl} title={document.name} className="h-[65vh] w-full border border-ink-line bg-brand-soft" />
+          {previewUrl ? (
+            <iframe src={previewUrl} title={document.name} className="h-[65vh] w-full border border-ink-line bg-brand-soft" />
+          ) : previewError ? (
+            <div className="flex min-h-72 items-center justify-center border border-dashed border-red-200 bg-red-50 p-8 text-center text-sm text-red-700">{previewError}</div>
           ) : (
             <div className="flex min-h-72 flex-col items-center justify-center border border-dashed border-ink-line bg-brand-soft p-8 text-center">
               <FileText className="mb-4 h-10 w-10 text-brand" />
               <p className="font-semibold">{document.name}</p>
-              <p className="mt-2 max-w-md text-sm leading-6 text-ink-muted">La vista previa estará disponible cuando este documento se conecte al almacenamiento del backend.</p>
+              <p className="mt-2 max-w-md text-sm leading-6 text-ink-muted">Cargando documento...</p>
             </div>
           )}
         </div>

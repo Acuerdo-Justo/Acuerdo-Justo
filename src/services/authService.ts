@@ -45,8 +45,16 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}) {
   return response.json() as Promise<T>;
 }
 
-export function apiResourceUrl(path: string) {
-  return `${apiUrl}${path}`;
+export async function apiBlobRequest(path: string) {
+  const response = await fetch(`${apiUrl}${path}`, { credentials: 'include' });
+
+  if (!response.ok) {
+    if (response.status === 401) clearTabSession();
+    const error = await response.json().catch(() => ({ message: 'No se pudo descargar el documento.' }));
+    throw new Error(error.message ?? 'No se pudo descargar el documento.');
+  }
+
+  return response.blob();
 }
 
 export async function login(username: string, password: string) {

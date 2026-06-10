@@ -1,4 +1,4 @@
-import { apiRequest, apiResourceUrl } from './authService';
+import { apiBlobRequest, apiRequest } from './authService';
 
 export type SchedulePeriod = 'morning' | 'afternoon';
 export type ServiceMode = 'presencial' | 'virtual';
@@ -107,8 +107,8 @@ export async function updateCaseStatus(caseId: string, status: CaseStatus) {
   });
 }
 
-export function documentUrl(documentId: string) {
-  return apiResourceUrl(`/cases/documents/${documentId}/download`);
+export function getDocumentBlob(documentId: string) {
+  return apiBlobRequest(`/cases/documents/${documentId}/download`);
 }
 
 export async function listMeetings() {

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   Briefcase,
-  Calculator,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -49,7 +48,6 @@ const navigation = [
   { label: 'Casos y solicitudes', icon: Briefcase },
   { label: 'Agenda', icon: CalendarDays },
   { label: 'Asesorías', icon: Video },
-  { label: 'Calculadora', icon: Calculator },
 ];
 
 function RoleBadge({ role }: { role: UserRole }) {
