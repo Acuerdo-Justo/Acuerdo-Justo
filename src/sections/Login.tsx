@@ -37,15 +37,11 @@ export function Login({ onAuthenticated }: { onAuthenticated: () => void }) {
         <div className="grid overflow-hidden border border-ink-line bg-white shadow-professional lg:grid-cols-[0.9fr_1.1fr]">
           <div className="relative overflow-hidden bg-ink p-8 text-white sm:p-10 lg:p-14">
             <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full border border-white/10" />
-            <ShieldCheck className="mb-10 h-10 w-10 text-accent-light" />
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-accent-light">Espacio privado</p>
             <h2 className="mb-5 font-serif text-3xl font-bold sm:text-4xl">Gestion clara y segura</h2>
             <p className="max-w-md leading-7 text-white/60">
               Accede a las herramientas de Acuerdo Justo y consulta el avance de tus solicitudes desde un solo lugar.
             </p>
-            <div className="mt-12 border-t border-white/10 pt-7 text-sm text-white/50">
-              Cada cuenta nueva se registra automaticamente con el rol de cliente.
-            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 sm:p-10 lg:p-14">

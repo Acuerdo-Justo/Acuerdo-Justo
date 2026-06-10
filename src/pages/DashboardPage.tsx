@@ -296,18 +296,6 @@ function Overview({ data, canManageUsers, onManageUsers }: { data: DashboardData
             </table>
           </div>
         </article>
-
-        <article className="bg-ink p-6 text-white shadow-sm sm:p-8">
-          <Scale className="mb-8 h-8 w-8 text-accent-light" />
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent-light">Modelo de acceso</p>
-          <h2 className="mb-4 font-serif text-2xl font-bold">Tres roles, responsabilidades claras</h2>
-          <p className="mb-7 text-sm leading-6 text-white/55">Cada nuevo registro inicia como cliente. El administrador es el único autorizado para asignar permisos profesionales.</p>
-          <div className="space-y-4 border-t border-white/10 pt-6 text-sm">
-            <p className="flex items-center gap-3"><UserRound className="h-4 w-4 text-brand-light" /> Cliente: gestiona su proceso</p>
-            <p className="flex items-center gap-3"><Briefcase className="h-4 w-4 text-accent-light" /> Asesor: atiende casos asignados</p>
-            <p className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-white" /> Administrador: controla usuarios y roles</p>
-          </div>
-        </article>
       </section>
     </>
   );
